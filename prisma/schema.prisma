@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Model untuk pengguna sistem GateLand
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relasi: seorang user bisa punya banyak log akses
+  accessLogs AccessLog[]
+
+  @@map("users")
+}
+
+// Model untuk gerbang/gate
+model Gate {
+  id        Int        @id @default(autoincrement())
+  name      String
+  location  String
+  status    GateStatus @default(CLOSED)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  // Relasi: sebuah gate punya banyak log akses
+  accessLogs AccessLog[]
+
+  @@map("gates")
+}
+
+// Model untuk mencatat log akses gerbang
+model AccessLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  gateId    Int      @map("gate_id")
+  action    Action
+  timestamp DateTime @default(now())
+
+  // Relasi
+  user User @relation(fields: [userId], references: [id])
+  gate Gate @relation(fields: [gateId], references: [id])
+
+  @@map("access_logs")
+}
+
+// Enum untuk role pengguna
+enum Role {
+  ADMIN
+  USER
+  GUARD
+}
+
+// Enum untuk status gerbang
+enum GateStatus {
+  OPEN
+  CLOSED
+  MAINTENANCE
+}
+
+// Enum untuk jenis aksi
+enum Action {
+  OPEN
+  CLOSE
+  DENIED
+}
