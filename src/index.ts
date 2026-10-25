@@ -21,7 +21,7 @@ const httpServer = createServer(app);
 // ─── Socket.IO untuk real-time status gerbang ───────────────────────────────
 export const io = new Server(httpServer, {
     cors: {
-        origin: config.frontendUrl,
+        origin: '*',
         methods: ['GET', 'POST'],
     },
 });
@@ -36,7 +36,10 @@ io.on('connection', (socket) => {
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
 app.use(cors({
-    origin: [config.frontendUrl, 'http://localhost:3001', 'http://localhost:3000'],
+    origin: (origin, callback) => {
+        // Izinkan semua origin (localhost, IP eksternal, mobile app, Postman)
+        callback(null, true);
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -59,7 +62,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
-httpServer.listen(config.port, () => {
+httpServer.listen(config.port, '0.0.0.0', () => {
     console.log(`\n🚀 Server GateLand berjalan di http://localhost:${config.port}`);
     console.log(`📡 Socket.IO siap untuk real-time connection`);
     console.log(`\n📋 API Endpoints:`);

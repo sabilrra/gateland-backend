@@ -6,6 +6,7 @@ datasource db {
   provider = "mysql"
 }
 
+
 // Model untuk pengguna sistem GateLand
 model User {
   id        Int      @id @default(autoincrement())
