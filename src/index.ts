@@ -11,6 +11,7 @@ import gateRoutes from './routes/gate.routes';
 import userRoutes from './routes/user.routes';
 import accessLogRoutes from './routes/accessLog.routes';
 import statsRoutes from './routes/stats.routes';
+import announcementRoutes from './routes/announcement.routes';
 
 // Middlewares
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
@@ -56,6 +57,7 @@ app.use('/api/gates', gateRoutes);                 // Gate CRUD + Aksi
 app.use('/api/users', userRoutes);                 // User management (Admin)
 app.use('/api/access-logs', accessLogRoutes);      // Log akses
 app.use('/api/stats', statsRoutes);                // Statistik dashboard
+app.use('/api/announcements', announcementRoutes);  // Pengumuman klaster
 
 // ─── Error Handling ───────────────────────────────────────────────────────────
 app.use(notFoundHandler);

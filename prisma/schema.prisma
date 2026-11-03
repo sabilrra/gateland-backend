@@ -6,68 +6,74 @@ datasource db {
   provider = "mysql"
 }
 
-
-// Model untuk pengguna sistem GateLand
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relasi: seorang user bisa punya banyak log akses
+  id         Int         @id @default(autoincrement())
+  name       String
+  email      String      @unique
+  password   String
+  role       Role        @default(USER)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
   accessLogs AccessLog[]
 
   @@map("users")
 }
 
-// Model untuk gerbang/gate
 model Gate {
-  id        Int        @id @default(autoincrement())
-  name      String
-  location  String
-  status    GateStatus @default(CLOSED)
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
-
-  // Relasi: sebuah gate punya banyak log akses
+  id         Int         @id @default(autoincrement())
+  name       String
+  location   String
+  status     GateStatus  @default(CLOSED)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
   accessLogs AccessLog[]
 
   @@map("gates")
 }
 
-// Model untuk mencatat log akses gerbang
 model AccessLog {
   id        Int      @id @default(autoincrement())
   userId    Int      @map("user_id")
   gateId    Int      @map("gate_id")
   action    Action
   timestamp DateTime @default(now())
+  gate      Gate     @relation(fields: [gateId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
-  // Relasi
-  user User @relation(fields: [userId], references: [id])
-  gate Gate @relation(fields: [gateId], references: [id])
-
+  @@index([gateId], map: "access_logs_gate_id_fkey")
+  @@index([userId], map: "access_logs_user_id_fkey")
   @@map("access_logs")
 }
 
-// Enum untuk role pengguna
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  title       String
+  category    String
+  urgency     String   @default("biasa")
+  content     String   @db.Text
+  location    String?
+  eventDate   String?  @map("event_date")
+  eventTime   String?  @map("event_time")
+  targetWarga String?  @map("target_warga")
+  authorName  String?  @default("Admin") @map("author_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("announcements")
+}
+
 enum Role {
   ADMIN
   USER
   GUARD
 }
 
-// Enum untuk status gerbang
 enum GateStatus {
   OPEN
   CLOSED
   MAINTENANCE
 }
 
-// Enum untuk jenis aksi
 enum Action {
   OPEN
   CLOSE
