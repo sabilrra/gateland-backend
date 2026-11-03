@@ -22,7 +22,7 @@ const strongPassword = z
         message: 'Password harus mengandung minimal 1 karakter simbol (contoh: !@#$%-_)',
     });
 
-// Schema untuk Register
+// Schema untuk Register (mobile — wajib @gmail.com)
 export const registerSchema = z.object({
     name: z.string().min(2, 'Nama minimal 2 karakter'),
     email: gmailEmail,
@@ -30,7 +30,7 @@ export const registerSchema = z.object({
     role: z.enum(['ADMIN', 'USER', 'GUARD']).optional().default('USER'),
 });
 
-// Schema untuk Login
+// Schema untuk Login (dipakai di kedua endpoint: mobile & admin, wajib @gmail.com)
 export const loginSchema = z.object({
     email: gmailEmail,
     password: z.string().min(1, 'Password wajib diisi'),

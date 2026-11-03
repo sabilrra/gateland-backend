@@ -69,7 +69,8 @@ httpServer.listen(config.port, '0.0.0.0', () => {
     console.log(`   GET  /                         — Health check`);
     console.log(`   GET  /api/status               — Status API`);
     console.log(`   POST /api/auth/register        — Register`);
-    console.log(`   POST /api/auth/login           — Login`);
+    console.log(`   POST /api/auth/login           — Login (Mobile: USER & GUARD)`);
+    console.log(`   POST /api/auth/admin/login     — Login (Website Admin: ADMIN)`);
     console.log(`   GET  /api/auth/me              — Profil user`);
     console.log(`   GET  /api/gates                — Semua gate`);
     console.log(`   POST /api/gates/:id/action     — Aksi gerbang`);

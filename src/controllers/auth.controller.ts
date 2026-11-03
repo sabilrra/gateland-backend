@@ -42,7 +42,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     });
 };
 
-// POST /api/auth/login
+// POST /api/auth/login — Login untuk mobile app (hanya USER dan GUARD)
 export const login = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body;
 
@@ -52,6 +52,15 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         res.status(401).json({
             status: 'error',
             message: 'Email atau password salah.',
+        });
+        return;
+    }
+
+    // Cek role: endpoint ini hanya untuk USER dan GUARD (mobile app)
+    if (user.role === 'ADMIN') {
+        res.status(403).json({
+            status: 'error',
+            message: 'Akun admin tidak dapat login melalui aplikasi mobile. Silakan gunakan website admin.',
         });
         return;
     }
@@ -76,6 +85,61 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.json({
         status: 'success',
         message: 'Login berhasil.',
+        data: {
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+            },
+            token,
+        },
+    });
+};
+
+// POST /api/auth/admin/login — Login khusus untuk website admin (hanya ADMIN)
+export const adminLogin = async (req: Request, res: Response): Promise<void> => {
+    const { email, password } = req.body;
+
+    // Cari user
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+        res.status(401).json({
+            status: 'error',
+            message: 'Email atau password salah.',
+        });
+        return;
+    }
+
+    // Cek role & email: website admin hanya boleh diakses oleh admin@gmail.com dengan role ADMIN
+    if (user.role !== 'ADMIN' || user.email !== 'admin@gmail.com') {
+        res.status(403).json({
+            status: 'error',
+            message: 'Hanya akun admin@gmail.com yang memiliki akses ke website admin.',
+        });
+        return;
+    }
+
+    // Verifikasi password
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+        res.status(401).json({
+            status: 'error',
+            message: 'Email atau password salah.',
+        });
+        return;
+    }
+
+    // Generate token
+    const token = jwt.sign(
+        { id: user.id, email: user.email, role: user.role },
+        config.jwtSecret,
+        { expiresIn: config.jwtExpiresIn } as jwt.SignOptions
+    );
+
+    res.json({
+        status: 'success',
+        message: 'Login admin berhasil.',
         data: {
             user: {
                 id: user.id,
