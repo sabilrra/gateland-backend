@@ -62,6 +62,54 @@ model Announcement {
   @@map("announcements")
 }
 
+model Bill {
+  id           Int           @id @default(autoincrement())
+  userId       Int?          @map("user_id")
+  residentName String        @map("resident_name")
+  unit         String
+  month        String        @default("Agustus 2026")
+  amount       Int           @default(175000)
+  status       BillStatus    @default(UNPAID)
+  dueDate      String?       @default("10 Agustus 2026") @map("due_date")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  transactions Transaction[]
+
+  @@map("bills")
+}
+
+model Transaction {
+  id             String            @id @default(uuid())
+  billId         Int?              @map("bill_id")
+  userId         Int?              @map("user_id")
+  residentName   String            @map("resident_name")
+  unit           String
+  amount         Int
+  paymentChannel String            @default("QRIS") @map("payment_channel")
+  status         TransactionStatus @default(PENDING)
+  qrisData       String?           @db.Text @map("qris_data")
+  proofUrl       String?           @map("proof_url")
+  paidAt         DateTime?         @map("paid_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  bill           Bill?             @relation(fields: [billId], references: [id])
+
+  @@index([billId], map: "transactions_bill_id_fkey")
+  @@map("transactions")
+}
+
+enum BillStatus {
+  UNPAID
+  PAID
+}
+
+enum TransactionStatus {
+  PENDING
+  SETTLEMENT
+  FAILED
+  EXPIRED
+}
+
 enum Role {
   ADMIN
   USER

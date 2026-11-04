@@ -53,6 +53,29 @@ export const authMiddleware = (
     }
 };
 
+// Optional Auth — coba decode token jika ada, tetapi tidak memblokir jika tidak ada
+export const optionalAuthMiddleware = (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+): void => {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const decoded = jwt.verify(token, config.jwtSecret as string) as unknown as {
+                id: number;
+                email: string;
+                role: string;
+            };
+            req.user = decoded;
+        } catch {
+            // Ignore error, proceed without req.user
+        }
+    }
+    next();
+};
+
 // Role guard — hanya izinkan role tertentu
 export const roleGuard = (...roles: string[]) => {
     return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
