@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getHome, getStatus } from '../controllers/gita.controller';
+import { getHome, getStatus, chatWithGita } from '../controllers/gita.controller';
 
 const router = Router();
 
@@ -8,5 +8,8 @@ router.get('/', getHome);
 
 // Endpoint khusus untuk tes dari aplikasi mobile/Gita
 router.get('/api/status', getStatus);
+
+// Endpoint percakapan cerdas Gita AI Assistant
+router.post('/api/gita/chat', chatWithGita);
 
 export default router;

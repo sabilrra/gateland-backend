@@ -224,7 +224,7 @@ export const simulatePayQris = async (req: Request, res: Response): Promise<void
 // Polling status transaksi oleh Mobile App
 export const checkPaymentStatus = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id } = req.params;
+        const id = req.params['id'] as string;
 
         const transaction = await prisma.transaction.findUnique({
             where: { id }
@@ -309,4 +309,212 @@ export const getAdminPayments = async (req: Request, res: Response): Promise<voi
         });
     }
 };
+
+// ─── POST /api/payments/bills ──────────────────────────────────────────────
+// Membuat tagihan baru oleh Admin
+export const createBill = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { residentName, unit, month, amount, dueDate, userId } = req.body;
+        
+        const bill = await prisma.bill.create({
+            data: {
+                residentName: residentName || 'Sabila Aulia',
+                unit: unit || 'Unit 1',
+                month: month || 'Agustus 2026',
+                amount: amount ? parseInt(amount.toString(), 10) : 175000,
+                dueDate: dueDate || '10 Agustus 2026',
+                status: 'UNPAID',
+                userId: userId ? parseInt(userId.toString(), 10) : null,
+            }
+        });
+
+        // Broadcast ke mobile lewat Socket.IO
+        io.emit('bill:created', bill);
+
+        res.status(201).json({
+            status: 'success',
+            message: 'Tagihan baru berhasil dibuat.',
+            data: bill
+        });
+    } catch (err: any) {
+        res.status(500).json({
+            status: 'error',
+            message: err.message || 'Gagal membuat tagihan.'
+        });
+    }
+};
+
+// ─── GET /api/payments/bills ───────────────────────────────────────────────
+// Mengambil semua daftar tagihan
+export const getBills = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const bills = await prisma.bill.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: { transactions: true }
+        });
+        res.json({
+            status: 'success',
+            data: bills
+        });
+    } catch (err: any) {
+        res.status(500).json({
+            status: 'error',
+            message: err.message || 'Gagal mengambil tagihan.'
+        });
+    }
+};
+
+// ─── POST /api/payments/verify/:id ─────────────────────────────────────────
+// Verifikasi / Persetujuan pembayaran oleh Admin (Setujui / Tolak)
+export const verifyPayment = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params['id'] as string;
+        const { decision } = req.body; // 'approved' | 'rejected'
+        const status = decision === 'approved' ? 'SETTLEMENT' : 'FAILED';
+
+        const transaction = await prisma.transaction.findUnique({
+            where: { id }
+        });
+
+        if (!transaction) {
+            res.status(404).json({
+                status: 'error',
+                message: 'Transaksi tidak ditemukan.'
+            });
+            return;
+        }
+
+        const updated = await prisma.transaction.update({
+            where: { id },
+            data: {
+                status,
+                paidAt: decision === 'approved' ? new Date() : null,
+            }
+        });
+
+        if (transaction.billId && decision === 'approved') {
+            await prisma.bill.update({
+                where: { id: transaction.billId },
+                data: { status: 'PAID' }
+            });
+        }
+
+        try {
+            io.emit('payment:verified', {
+                id,
+                status,
+                residentName: transaction.residentName,
+                billId: transaction.billId
+            });
+        } catch {
+            // Abaikan error socket
+        }
+
+        res.json({
+            status: 'success',
+            message: `Pembayaran berhasil ${decision === 'approved' ? 'disetujui' : 'ditolak'}.`,
+            data: updated
+        });
+    } catch (err: any) {
+        res.status(500).json({
+            status: 'error',
+            message: err.message || 'Gagal memverifikasi pembayaran.'
+        });
+    }
+};
+
+// ─── GET /api/payments/my-history ──────────────────────────────────────────
+// Mengambil riwayat transaksi pembayaran milik user / warga
+export const getMyPaymentHistory = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const residentName = req.user?.name || 'Sabila Aulia';
+
+        const transactions = await prisma.transaction.findMany({
+            where: {
+                OR: [
+                    userId ? { userId } : { residentName },
+                    { residentName }
+                ]
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        res.json({
+            status: 'success',
+            data: transactions
+        });
+    } catch (err: any) {
+        res.status(500).json({
+            status: 'error',
+            message: err.message || 'Gagal mengambil riwayat transaksi.'
+        });
+    }
+};
+
+// ─── POST /api/payments/manual-transfer ────────────────────────────────────
+// Submit bukti konfirmasi transfer manual bank dari mobile warga
+export const submitManualTransfer = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+        const { amount, residentName, unit, bankName, senderAccount, notes } = req.body;
+        const targetAmount = amount ? parseInt(amount.toString(), 10) : 175000;
+        const name = residentName || req.user?.name || 'Sabila Aulia';
+        const targetUnit = unit || 'Unit 1';
+        const channelName = bankName ? `${bankName} Transfer` : 'BCA Transfer';
+
+        const transactionId = `TRX-TF-${Date.now()}`;
+
+        // Cari bill aktif
+        const activeBill = await prisma.bill.findFirst({
+            where: {
+                status: 'UNPAID',
+                OR: [
+                    req.user?.id ? { userId: req.user.id } : { residentName: name },
+                    { unit: targetUnit }
+                ]
+            }
+        });
+
+        const transaction = await prisma.transaction.create({
+            data: {
+                id: transactionId,
+                billId: activeBill?.id || null,
+                userId: req.user?.id || null,
+                residentName: name,
+                unit: targetUnit,
+                amount: targetAmount,
+                paymentChannel: channelName,
+                status: 'PENDING',
+                qrisData: notes || senderAccount || 'Konfirmasi Transfer Manual Warga',
+            }
+        });
+
+        // Broadcast real-time ke admin website
+        try {
+            io.emit('payment:created', {
+                id: transaction.id,
+                residentName: transaction.residentName,
+                unit: transaction.unit,
+                amount: transaction.amount,
+                channel: transaction.paymentChannel,
+                status: 'PENDING',
+                createdAt: transaction.createdAt
+            });
+        } catch {
+            // Abaikan error socket
+        }
+
+        res.status(201).json({
+            status: 'success',
+            message: 'Konfirmasi transfer berhasil dikirim. Menunggu verifikasi pengurus.',
+            data: transaction
+        });
+    } catch (err: any) {
+        res.status(500).json({
+            status: 'error',
+            message: err.message || 'Gagal mengirim konfirmasi transfer.'
+        });
+    }
+};
+
 

@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { io } from '../index';
@@ -89,4 +89,68 @@ export const createAnnouncement = async (req: AuthenticatedRequest, res: Respons
         });
     }
 };
+
+// DELETE /api/announcements/:id — Hapus pengumuman
+export const deleteAnnouncement = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = parseInt(req.params['id'] as string, 10);
+        if (isNaN(id)) {
+            res.status(400).json({ status: 'error', message: 'ID pengumuman tidak valid.' });
+            return;
+        }
+
+        await prisma.announcement.delete({
+            where: { id },
+        });
+
+        res.json({
+            status: 'success',
+            message: 'Pengumuman berhasil dihapus.',
+        });
+    } catch (err: any) {
+        res.status(500).json({
+            status: 'error',
+            message: err.message || 'Gagal menghapus pengumuman.',
+        });
+    }
+};
+
+// PUT /api/announcements/:id — Edit pengumuman
+export const updateAnnouncement = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = parseInt(req.params['id'] as string, 10);
+        if (isNaN(id)) {
+            res.status(400).json({ status: 'error', message: 'ID pengumuman tidak valid.' });
+            return;
+        }
+
+        const { title, judul, category, kategori, urgency, urgensi, content, isi, location, lokasi, eventDate, tanggal, eventTime, jam, targetWarga, target_warga } = req.body;
+
+        const updated = await prisma.announcement.update({
+            where: { id },
+            data: {
+                ...(title || judul ? { title: title || judul } : {}),
+                ...(category || kategori ? { category: category || kategori } : {}),
+                ...(urgency || urgensi ? { urgency: urgency || urgensi } : {}),
+                ...(content || isi ? { content: content || isi } : {}),
+                ...(location !== undefined || lokasi !== undefined ? { location: location ?? lokasi } : {}),
+                ...(eventDate !== undefined || tanggal !== undefined ? { eventDate: eventDate ?? tanggal } : {}),
+                ...(eventTime !== undefined || jam !== undefined ? { eventTime: eventTime ?? jam } : {}),
+                ...(targetWarga !== undefined || target_warga !== undefined ? { targetWarga: targetWarga ?? target_warga } : {}),
+            },
+        });
+
+        res.json({
+            status: 'success',
+            message: 'Pengumuman berhasil diperbarui.',
+            data: updated,
+        });
+    } catch (err: any) {
+        res.status(500).json({
+            status: 'error',
+            message: err.message || 'Gagal memperbarui pengumuman.',
+        });
+    }
+};
+
 

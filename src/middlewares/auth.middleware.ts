@@ -8,6 +8,7 @@ export interface AuthenticatedRequest extends Request {
         id: number;
         email: string;
         role: string;
+        name?: string;
     };
 }
 
@@ -62,15 +63,18 @@ export const optionalAuthMiddleware = (
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.split(' ')[1];
-        try {
-            const decoded = jwt.verify(token, config.jwtSecret as string) as unknown as {
-                id: number;
-                email: string;
-                role: string;
-            };
-            req.user = decoded;
-        } catch {
-            // Ignore error, proceed without req.user
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, config.jwtSecret as string) as unknown as {
+                    id: number;
+                    email: string;
+                    role: string;
+                    name?: string;
+                };
+                req.user = decoded;
+            } catch {
+                // Ignore error, proceed without req.user
+            }
         }
     }
     next();
