@@ -1,32 +1,56 @@
 import { z } from 'zod';
 
-// Validasi email harus menggunakan @gmail.com
-const gmailEmail = z
+// Validasi email harus menggunakan @gmail.com (case-insensitive)
+export const gmailEmail = z
     .string()
+    .trim()
+    .toLowerCase()
     .email('Format email tidak valid')
     .refine((val) => val.endsWith('@gmail.com'), {
         message: 'Email harus menggunakan @gmail.com',
     });
 
-// Validasi password kuat: huruf kapital, angka, dan simbol
-const strongPassword = z
+// Validasi kata sandi kuat:
+// - Minimal 8 karakter
+// - Kombinasi huruf kapital (A-Z)
+// - Kombinasi angka (0-9)
+// - Kombinasi simbol/ikon seperti tanda seru (!) atau strip (-)
+export const strongPassword = z
     .string()
-    .min(8, 'Password minimal 8 karakter')
+    .min(8, 'Kata sandi minimal 8 karakter')
+    .refine((val) => !/\s/.test(val), {
+        message: 'Kata sandi tidak boleh mengandung spasi',
+    })
     .refine((val) => /[A-Z]/.test(val), {
-        message: 'Password harus mengandung minimal 1 huruf kapital',
+        message: 'Kata sandi harus mengandung kombinasi huruf kapital (A-Z)',
     })
     .refine((val) => /[0-9]/.test(val), {
-        message: 'Password harus mengandung minimal 1 angka',
+        message: 'Kata sandi harus mengandung kombinasi angka (0-9)',
     })
-    .refine((val) => /[^A-Za-z0-9]/.test(val), {
-        message: 'Password harus mengandung minimal 1 karakter simbol (contoh: !@#$%-_)',
+    .refine((val) => /[^A-Za-z0-9\s]/.test(val), {
+        message: 'Kata sandi harus mengandung ikon/simbol seperti tanda seru (!) atau strip (-)',
+    });
+
+// Validasi nomor WhatsApp
+const whatsappField = z
+    .string()
+    .trim()
+    .refine((val) => /^[+\d\s\-()]+$/.test(val), {
+        message: 'Nomor WhatsApp hanya boleh berisi angka',
+    })
+    .refine((val) => val.replace(/\D/g, '').length >= 9, {
+        message: 'Nomor WhatsApp minimal 9 digit angka',
+    })
+    .refine((val) => val.replace(/\D/g, '').length <= 15, {
+        message: 'Nomor WhatsApp maksimal 15 digit angka',
     });
 
 // Schema untuk Register (mobile — wajib @gmail.com)
 export const registerSchema = z.object({
-    name: z.string().min(2, 'Nama minimal 2 karakter'),
+    name: z.string().trim().min(2, 'Nama lengkap minimal 2 karakter'),
     email: gmailEmail,
-    whatsapp: z.string().min(9, 'Nomor WhatsApp minimal 9 digit').optional(),
+    whatsapp: whatsappField.optional(),
+    address: z.string().trim().min(3, 'Alamat / Blok & No. Unit minimal 3 karakter').optional(),
     password: strongPassword,
     role: z.enum(['ADMIN', 'USER', 'GUARD']).optional().default('USER'),
 });
@@ -53,4 +77,30 @@ export const updateGateSchema = z.object({
 // Schema untuk aksi gerbang
 export const gateActionSchema = z.object({
     action: z.enum(['OPEN', 'CLOSE', 'DENIED']),
+});
+
+// Schema untuk Update Profil Warga (PUT /api/auth/me)
+const optionalTrimmedString = z
+    .string()
+    .trim()
+    .nullable()
+    .optional();
+
+export const updateProfileSchema = z.object({
+    name: z.string().trim().min(2, 'Nama lengkap minimal 2 karakter').optional(),
+    email: gmailEmail.optional(),
+    whatsapp: optionalTrimmedString,
+    address: optionalTrimmedString,
+    nik: optionalTrimmedString,
+    birthPlaceDate: optionalTrimmedString,
+    residencyStatus: optionalTrimmedString,
+    familyCount: optionalTrimmedString,
+    emergencyContactName: optionalTrimmedString,
+    emergencyContactPhone: optionalTrimmedString,
+    rwArea: optionalTrimmedString,
+    occupancyStatus: optionalTrimmedString,
+    ownershipType: optionalTrimmedString,
+    powerWater: optionalTrimmedString,
+    vehicles: optionalTrimmedString,
+    photoUrl: optionalTrimmedString,
 });

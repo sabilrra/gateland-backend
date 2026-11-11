@@ -49,8 +49,8 @@ app.use(cors({
 }));
 
 // ─── Body Parser ─────────────────────────────────────────────────────────────
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use('/', gitaRoutes);                          // Health check

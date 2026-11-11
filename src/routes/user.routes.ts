@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getUsers, getUserById, updateUserRole, deleteUser } from '../controllers/user.controller';
+import { getUsers, getUserById, updateUserRole, verifyUser, deleteUser } from '../controllers/user.controller';
 import { authMiddleware, roleGuard } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -9,6 +9,7 @@ router.use(authMiddleware, roleGuard('ADMIN'));
 
 router.get('/', getUsers);
 router.get('/:id', getUserById);
+router.put('/:id/verify', verifyUser);
 router.put('/:id/role', updateUserRole);
 router.delete('/:id', deleteUser);
 

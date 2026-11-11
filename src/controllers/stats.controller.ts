@@ -10,6 +10,7 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
         closedGates,
         maintenanceGates,
         totalUsers,
+        recentUsers,
         totalLogs,
         todayLogs,
         recentLogs,
@@ -18,7 +19,21 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
         prisma.gate.count({ where: { status: 'OPEN' } }),
         prisma.gate.count({ where: { status: 'CLOSED' } }),
         prisma.gate.count({ where: { status: 'MAINTENANCE' } }),
-        prisma.user.count(),
+        prisma.user.count({ where: { role: { not: 'ADMIN' } } }),
+        prisma.user.findMany({
+            where: { role: { not: 'ADMIN' } },
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                whatsapp: true,
+                address: true,
+                isVerified: true,
+                createdAt: true,
+            },
+        }),
         prisma.accessLog.count(),
         prisma.accessLog.count({
             where: {
@@ -46,7 +61,7 @@ export const getStats = async (req: AuthenticatedRequest, res: Response): Promis
                 closed: closedGates,
                 maintenance: maintenanceGates,
             },
-            users: { total: totalUsers },
+            users: { total: totalUsers, recent: recentUsers },
             accessLogs: {
                 total: totalLogs,
                 today: todayLogs,

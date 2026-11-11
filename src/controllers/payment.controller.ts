@@ -4,57 +4,107 @@ import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { io } from '../index';
 
 // ─── GET /api/payments/my-bill ─────────────────────────────────────────────
-// Mengambil tagihan aktif warga (otomatis generate jika belum ada di database)
+// Mengambil tagihan aktif milik user yang login (user baru default Rp 0 / NONE)
 export const getMyBill = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
-        const residentName = req.user?.name || 'Sabila Aulia';
-        const unit = 'Unit 1';
-        const month = 'Agustus 2026';
 
-        // Cari tagihan bulan ini
-        let bill = await prisma.bill.findFirst({
-            where: {
-                month,
-                OR: [
-                    userId ? { userId } : { residentName },
-                    { unit }
-                ]
-            },
+        if (!userId) {
+            res.json({
+                status: 'success',
+                data: {
+                    id: null,
+                    userId: null,
+                    residentName: 'Warga',
+                    unit: '-',
+                    month: 'Periode Aktif',
+                    amount: 0,
+                    totalAmount: 0,
+                    status: 'NONE',
+                    dueDate: '-',
+                    bills: [],
+                    transactions: [],
+                },
+            });
+            return;
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, name: true, address: true },
+        });
+
+        const residentName = user?.name || req.user?.name || 'Warga';
+        const residentUnit = user?.address || '-';
+
+        // Query tagihan strictly berdasarkan userId (tanpa auto-create Rp 175.000)
+        const userBills = await prisma.bill.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
             include: {
                 transactions: {
                     orderBy: { createdAt: 'desc' },
-                    take: 1
-                }
-            }
+                    take: 1,
+                },
+            },
         });
 
-        // Jika belum ada, buatkan tagihan default
-        if (!bill) {
-            bill = await prisma.bill.create({
+        const unpaidBills = userBills.filter((b) => b.status === 'UNPAID');
+        const paidBills = userBills.filter((b) => b.status === 'PAID');
+
+        if (unpaidBills.length > 0) {
+            const totalUnpaid = unpaidBills.reduce((sum, b) => sum + b.amount, 0);
+            const primaryBill = unpaidBills[0]!;
+            res.json({
+                status: 'success',
                 data: {
-                    userId: userId || null,
+                    ...primaryBill,
                     residentName,
-                    unit,
-                    month,
-                    amount: 175000,
-                    status: 'UNPAID',
-                    dueDate: '10 Agustus 2026'
+                    unit: primaryBill.unit || residentUnit,
+                    amount: totalUnpaid,
+                    totalAmount: totalUnpaid,
+                    bills: userBills,
                 },
-                include: {
-                    transactions: true
-                }
             });
+            return;
         }
 
+        if (paidBills.length > 0) {
+            const latestPaid = paidBills[0]!;
+            res.json({
+                status: 'success',
+                data: {
+                    ...latestPaid,
+                    residentName,
+                    unit: latestPaid.unit || residentUnit,
+                    totalAmount: 0,
+                    bills: userBills,
+                },
+            });
+            return;
+        }
+
+        // User baru atau belum memiliki tagihan dari admin -> total tagihan Rp 0
         res.json({
             status: 'success',
-            data: bill
+            data: {
+                id: null,
+                userId,
+                residentName,
+                unit: residentUnit,
+                month: 'Periode Aktif',
+                amount: 0,
+                totalAmount: 0,
+                status: 'NONE',
+                dueDate: '-',
+                bills: [],
+                transactions: [],
+            },
         });
     } catch (err: any) {
         res.status(500).json({
             status: 'error',
-            message: err.message || 'Gagal mengambil tagihan.'
+            message: err.message || 'Gagal mengambil tagihan.',
         });
     }
 };
@@ -64,9 +114,17 @@ export const getMyBill = async (req: AuthenticatedRequest, res: Response): Promi
 export const createQrisTransaction = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const { billId, amount, residentName, unit } = req.body;
-        const targetAmount = amount ? parseInt(amount, 10) : 175000;
-        const name = residentName || req.user?.name || 'Sabila Aulia';
-        const targetUnit = unit || 'Unit 1';
+        const user = req.user?.id
+            ? await prisma.user.findUnique({
+                  where: { id: req.user.id },
+                  select: { id: true, name: true, address: true },
+              })
+            : null;
+
+        const parsedAmount = amount !== undefined && amount !== null ? parseInt(String(amount), 10) : 0;
+        const targetAmount = Number.isNaN(parsedAmount) ? 0 : parsedAmount;
+        const name = residentName || user?.name || req.user?.name || 'Warga';
+        const targetUnit = unit || user?.address || '-';
 
         // Buat ID transaksi unik ala QRIS Sandbox Midtrans/Xendit
         const transactionId = `TRX-QRIS-${Date.now()}`;
@@ -77,7 +135,7 @@ export const createQrisTransaction = async (req: AuthenticatedRequest, res: Resp
         const transaction = await prisma.transaction.create({
             data: {
                 id: transactionId,
-                billId: billId ? parseInt(billId, 10) : null,
+                billId: billId ? parseInt(String(billId), 10) : null,
                 userId: req.user?.id || null,
                 residentName: name,
                 unit: targetUnit,
@@ -177,10 +235,10 @@ export const simulatePayQris = async (req: Request, res: Response): Promise<void
                     where: { id: transaction.billId },
                     data: { status: 'PAID' }
                 });
-            } else {
-                // Cari bill unit ini
+            } else if (transaction.userId) {
+                // Cari bill milik user ini yang masih UNPAID
                 const bill = await prisma.bill.findFirst({
-                    where: { unit: transaction.unit, status: 'UNPAID' }
+                    where: { userId: transaction.userId, status: 'UNPAID' }
                 });
                 if (bill) {
                     await prisma.bill.update({
@@ -262,22 +320,44 @@ export const checkPaymentStatus = async (req: Request, res: Response): Promise<v
 // Mengambil daftar seluruh riwayat & status pembayaran untuk Admin Dashboard
 export const getAdminPayments = async (req: Request, res: Response): Promise<void> => {
     try {
-        const transactions = await prisma.transaction.findMany({
-            orderBy: { createdAt: 'desc' },
-            take: 50
-        });
+        const [transactions, bills] = await Promise.all([
+            prisma.transaction.findMany({
+                orderBy: { createdAt: 'desc' },
+                take: 50,
+            }),
+            prisma.bill.findMany({
+                orderBy: { createdAt: 'desc' },
+            }),
+        ]);
 
         // Hitung total terkumpul dari transaksi SETTLEMENT
-        const settled = transactions.filter(t => t.status === 'SETTLEMENT');
+        const settled = transactions.filter((t) => t.status === 'SETTLEMENT');
         const totalCollected = settled.reduce((sum, t) => sum + t.amount, 0);
-        const qrisCount = settled.filter(t => t.paymentChannel.startsWith('QRIS')).length;
+        const qrisCount = settled.filter((t) => t.paymentChannel.startsWith('QRIS')).length;
+
+        const unpaidBills = bills.filter((b) => b.status === 'UNPAID');
+        const paidBills = bills.filter((b) => b.status === 'PAID');
+        const unpaidAmount = unpaidBills.reduce((sum, b) => sum + b.amount, 0);
+        const totalBilledAmount = bills.reduce((sum, b) => sum + b.amount, 0);
 
         // Map ke format PendingPayment / PaymentVerification yang dibutuhkan admin
         const formatted = transactions.map((t) => {
-            const date = new Date(t.createdAt);
-            const timeAgo = t.paidAt
-                ? 'Lunas • ' + new Date(t.paidAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
-                : 'Menunggu scan QRIS';
+            const refDate = t.paidAt ? new Date(t.paidAt) : new Date(t.createdAt);
+            const formattedDate = refDate.toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+            });
+            const formattedTime = refDate.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+            const statusLabel =
+                t.status === 'SETTLEMENT'
+                    ? `Lunas • ${formattedDate}, ${formattedTime} WIB`
+                    : t.status === 'FAILED'
+                      ? `Ditolak • ${formattedDate}`
+                      : `Menunggu Verifikasi • ${formattedDate}, ${formattedTime} WIB`;
 
             return {
                 id: t.id,
@@ -287,9 +367,9 @@ export const getAdminPayments = async (req: Request, res: Response): Promise<voi
                 amount: t.amount,
                 channel: t.paymentChannel === 'QRIS' ? 'QRIS (Otomatis)' : t.paymentChannel,
                 status: t.status,
-                submittedAgo: timeAgo,
+                submittedAgo: statusLabel,
                 avatarTone: 'blue' as const,
-                paidAt: t.paidAt
+                paidAt: t.paidAt,
             };
         });
 
@@ -299,13 +379,18 @@ export const getAdminPayments = async (req: Request, res: Response): Promise<voi
                 totalCollected,
                 settledCount: settled.length,
                 qrisCount,
+                unpaidCount: unpaidBills.length,
+                unpaidAmount,
+                paidBillsCount: paidBills.length,
+                totalBilledAmount,
+                totalBillsCount: bills.length,
             },
-            data: formatted
+            data: formatted,
         });
     } catch (err: any) {
         res.status(500).json({
             status: 'error',
-            message: err.message || 'Gagal mengambil data pembayaran admin.'
+            message: err.message || 'Gagal mengambil data pembayaran admin.',
         });
     }
 };
@@ -314,32 +399,135 @@ export const getAdminPayments = async (req: Request, res: Response): Promise<voi
 // Membuat tagihan baru oleh Admin
 export const createBill = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { residentName, unit, month, amount, dueDate, userId } = req.body;
-        
-        const bill = await prisma.bill.create({
-            data: {
-                residentName: residentName || 'Sabila Aulia',
-                unit: unit || 'Unit 1',
-                month: month || 'Agustus 2026',
-                amount: amount ? parseInt(amount.toString(), 10) : 175000,
-                dueDate: dueDate || '10 Agustus 2026',
-                status: 'UNPAID',
-                userId: userId ? parseInt(userId.toString(), 10) : null,
+        const { residentName, unit, month, amount, dueDate, userId, sasaran, description } = req.body;
+        const parsedAmount = amount ? parseInt(amount.toString(), 10) : 175000;
+        const billMonth = month || 'November 2026';
+        const billDueDate = dueDate || 'Sesuai batas waktu';
+        const billDescription =
+            typeof description === 'string' && description.trim().length > 0 ? description.trim() : null;
+
+        if (userId) {
+            const targetUserId = parseInt(userId.toString(), 10);
+            const targetUser = await prisma.user.findUnique({
+                where: { id: targetUserId },
+                select: { id: true, name: true, address: true },
+            });
+
+            const bill = await prisma.bill.create({
+                data: {
+                    residentName: residentName || targetUser?.name || 'Warga GateLand',
+                    unit: unit || targetUser?.address || 'GateLand',
+                    month: billMonth,
+                    description: billDescription,
+                    amount: parsedAmount,
+                    dueDate: billDueDate,
+                    status: 'UNPAID',
+                    userId: targetUserId,
+                },
+            });
+
+            try {
+                io.emit('bill:created', bill);
+            } catch {
+                // Abaikan error socket
             }
+
+            res.status(201).json({
+                status: 'success',
+                message: 'Tagihan baru berhasil dibuat.',
+                data: bill,
+            });
+            return;
+        }
+
+        // Tagihan massal dari Admin untuk warga terdaftar saat ini
+        const residentUsers = await prisma.user.findMany({
+            where: { role: 'USER' },
+            select: { id: true, name: true, address: true },
         });
 
-        // Broadcast ke mobile lewat Socket.IO
-        io.emit('bill:created', bill);
+        let targetUsers = residentUsers;
+        if (sasaran === 'blok' || (residentName === 'Warga Blok Terpilih' && unit)) {
+            let blocks: string[] = [];
+            try {
+                const parsed = typeof unit === 'string' && unit.startsWith('[') ? JSON.parse(unit) : null;
+                if (Array.isArray(parsed)) {
+                    blocks = parsed.map((b) => String(b).trim().toLowerCase()).filter(Boolean);
+                }
+            } catch {
+                blocks = String(unit).split(',').map((b) => b.trim().toLowerCase()).filter(Boolean);
+            }
+            if (blocks.length > 0) {
+                const matched = residentUsers.filter((u) => {
+                    const addr = (u.address || '').toLowerCase();
+                    return blocks.some((b) => addr.includes(`blok ${b}`) || addr.includes(b));
+                });
+                if (matched.length > 0) {
+                    targetUsers = matched;
+                }
+            }
+        }
+
+        if (targetUsers.length > 0) {
+            const createdBills = await prisma.$transaction(
+                targetUsers.map((u) =>
+                    prisma.bill.create({
+                        data: {
+                            userId: u.id,
+                            residentName: u.name,
+                            unit: u.address || (unit && !String(unit).startsWith('[') ? String(unit) : 'GateLand'),
+                            month: billMonth,
+                            description: billDescription,
+                            amount: parsedAmount,
+                            dueDate: billDueDate,
+                            status: 'UNPAID',
+                        },
+                    })
+                )
+            );
+
+            try {
+                createdBills.forEach((b) => io.emit('bill:created', b));
+            } catch {
+                // Abaikan error socket
+            }
+
+            res.status(201).json({
+                status: 'success',
+                message: `Tagihan baru berhasil dibuat untuk ${createdBills.length} warga.`,
+                data: createdBills,
+            });
+            return;
+        }
+
+        const bill = await prisma.bill.create({
+            data: {
+                residentName: residentName || 'Warga GateLand',
+                unit: unit || 'GateLand',
+                month: billMonth,
+                description: billDescription,
+                amount: parsedAmount,
+                dueDate: billDueDate,
+                status: 'UNPAID',
+                userId: null,
+            },
+        });
+
+        try {
+            io.emit('bill:created', bill);
+        } catch {
+            // Abaikan error socket
+        }
 
         res.status(201).json({
             status: 'success',
             message: 'Tagihan baru berhasil dibuat.',
-            data: bill
+            data: bill,
         });
     } catch (err: any) {
         res.status(500).json({
             status: 'error',
-            message: err.message || 'Gagal membuat tagihan.'
+            message: err.message || 'Gagal membuat tagihan.',
         });
     }
 };
@@ -428,15 +616,13 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
 export const getMyPaymentHistory = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
-        const residentName = req.user?.name || 'Sabila Aulia';
+        if (!userId) {
+            res.json({ status: 'success', data: [] });
+            return;
+        }
 
         const transactions = await prisma.transaction.findMany({
-            where: {
-                OR: [
-                    userId ? { userId } : { residentName },
-                    { residentName }
-                ]
-            },
+            where: { userId },
             orderBy: { createdAt: 'desc' }
         });
 
@@ -456,24 +642,33 @@ export const getMyPaymentHistory = async (req: AuthenticatedRequest, res: Respon
 // Submit bukti konfirmasi transfer manual bank dari mobile warga
 export const submitManualTransfer = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-        const { amount, residentName, unit, bankName, senderAccount, notes } = req.body;
-        const targetAmount = amount ? parseInt(amount.toString(), 10) : 175000;
-        const name = residentName || req.user?.name || 'Sabila Aulia';
-        const targetUnit = unit || 'Unit 1';
+        const { billId, amount, residentName, unit, bankName, senderAccount, notes } = req.body;
+        const user = req.user?.id
+            ? await prisma.user.findUnique({
+                  where: { id: req.user.id },
+                  select: { id: true, name: true, address: true },
+              })
+            : null;
+
+        const parsedAmount = amount !== undefined && amount !== null ? parseInt(String(amount), 10) : 0;
+        const targetAmount = Number.isNaN(parsedAmount) ? 0 : parsedAmount;
+        const name = residentName || user?.name || req.user?.name || 'Warga';
+        const targetUnit = unit || user?.address || '-';
         const channelName = bankName ? `${bankName} Transfer` : 'BCA Transfer';
 
         const transactionId = `TRX-TF-${Date.now()}`;
 
-        // Cari bill aktif
-        const activeBill = await prisma.bill.findFirst({
-            where: {
-                status: 'UNPAID',
-                OR: [
-                    req.user?.id ? { userId: req.user.id } : { residentName: name },
-                    { unit: targetUnit }
-                ]
-            }
-        });
+        // Cari bill aktif milik user ini
+        const activeBill = billId
+            ? await prisma.bill.findUnique({ where: { id: parseInt(String(billId), 10) } })
+            : req.user?.id
+              ? await prisma.bill.findFirst({
+                    where: {
+                        userId: req.user.id,
+                        status: 'UNPAID',
+                    },
+                })
+              : null;
 
         const transaction = await prisma.transaction.create({
             data: {

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { prisma } from '../config/database';
 import { normalizeWhatsapp, maskWhatsapp } from '../utils/phone';
+import { strongPassword } from '../validators/schemas';
 
 // ─── Nodemailer transporter ───────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
@@ -225,6 +226,19 @@ export async function verifyOtp(req: Request, res: Response): Promise<void> {
             res.status(400).json({
                 status: 'error',
                 message: 'Email, kode OTP, dan kata sandi baru wajib diisi.',
+            });
+            return;
+        }
+
+        const passwordCheck = strongPassword.safeParse(newPassword);
+        if (!passwordCheck.success) {
+            res.status(400).json({
+                status: 'error',
+                message: passwordCheck.error.issues[0]?.message || 'Kata sandi baru tidak memenuhi ketentuan.',
+                errors: passwordCheck.error.issues.map((e) => ({
+                    field: 'newPassword',
+                    message: e.message,
+                })),
             });
             return;
         }

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getHome, getStatus, chatWithGita } from '../controllers/gita.controller';
+import { optionalAuthMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -10,6 +11,6 @@ router.get('/', getHome);
 router.get('/api/status', getStatus);
 
 // Endpoint percakapan cerdas Gita AI Assistant
-router.post('/api/gita/chat', chatWithGita);
+router.post('/api/gita/chat', optionalAuthMiddleware, chatWithGita);
 
 export default router;

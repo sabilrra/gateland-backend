@@ -7,15 +7,29 @@ datasource db {
 }
 
 model User {
-  id         Int         @id @default(autoincrement())
-  name       String
-  email      String      @unique
-  whatsapp   String?
-  password   String
-  role       Role        @default(USER)
-  createdAt  DateTime    @default(now()) @map("created_at")
-  updatedAt  DateTime    @updatedAt @map("updated_at")
-  accessLogs AccessLog[]
+  id                    Int         @id @default(autoincrement())
+  name                  String
+  email                 String      @unique
+  whatsapp              String?
+  address               String?
+  password              String
+  role                  Role        @default(USER)
+  isVerified            Boolean     @default(true) @map("is_verified")
+  nik                   String?
+  birthPlaceDate        String?     @map("birth_place_date")
+  residencyStatus       String?     @map("residency_status")
+  familyCount           String?     @map("family_count")
+  emergencyContactName  String?     @map("emergency_contact_name")
+  emergencyContactPhone String?     @map("emergency_contact_phone")
+  rwArea                String?     @map("rw_area")
+  occupancyStatus       String?     @map("occupancy_status")
+  ownershipType         String?     @map("ownership_type")
+  powerWater            String?     @map("power_water")
+  vehicles              String?     @db.Text
+  photoUrl              String?     @db.LongText @map("photo_url")
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+  accessLogs            AccessLog[]
 
   @@map("users")
 }
@@ -69,6 +83,7 @@ model Bill {
   residentName String        @map("resident_name")
   unit         String
   month        String        @default("Agustus 2026")
+  description  String?       @db.Text
   amount       Int           @default(175000)
   status       BillStatus    @default(UNPAID)
   dueDate      String?       @default("10 Agustus 2026") @map("due_date")

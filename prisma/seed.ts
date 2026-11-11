@@ -15,36 +15,40 @@ async function main() {
     // Admin (khusus untuk Website Admin, backend memvalidasi wajib admin@gmail.com)
     const admin = await prisma.user.upsert({
         where: { email: 'admin@gmail.com' },
-        update: { password: adminHashedPassword, role: 'ADMIN' },
+        update: { password: adminHashedPassword, role: 'ADMIN', isVerified: true },
         create: {
             name: 'Admin Gateland',
             email: 'admin@gmail.com',
             password: adminHashedPassword,
             role: 'ADMIN',
+            isVerified: true,
         },
     });
 
     // Guard / Satpam (untuk Mobile App)
     const guard = await prisma.user.upsert({
         where: { email: 'guard@gmail.com' },
-        update: { password: userHashedPassword, role: 'GUARD' },
+        update: { password: userHashedPassword, role: 'GUARD', isVerified: true },
         create: {
             name: 'Budi Santoso (Satpam)',
             email: 'guard@gmail.com',
             password: userHashedPassword,
             role: 'GUARD',
+            isVerified: true,
         },
     });
 
     // Warga / Resident (untuk Mobile App)
     const resident = await prisma.user.upsert({
         where: { email: 'sabila@gmail.com' },
-        update: { password: userHashedPassword, role: 'USER' },
+        update: { password: userHashedPassword, role: 'USER', address: 'Blok A1 Unit 1', isVerified: true },
         create: {
             name: 'Sabila Aulia',
             email: 'sabila@gmail.com',
+            address: 'Blok A1 Unit 1',
             password: userHashedPassword,
             role: 'USER',
+            isVerified: true,
         },
     });
 

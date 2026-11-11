@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { register, login, adminLogin, getMe } from '../controllers/auth.controller';
+import { register, login, adminLogin, getMe, updateMe } from '../controllers/auth.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
-import { registerSchema, loginSchema } from '../validators/schemas';
+import { registerSchema, loginSchema, updateProfileSchema } from '../validators/schemas';
 
 const router = Router();
 
@@ -17,5 +17,8 @@ router.post('/admin/login', validate(loginSchema), adminLogin);
 
 // GET /api/auth/me — Perlu login
 router.get('/me', authMiddleware, getMe);
+
+// PUT /api/auth/me — Update profil warga yang sedang login
+router.put('/me', authMiddleware, validate(updateProfileSchema), updateMe);
 
 export default router;
