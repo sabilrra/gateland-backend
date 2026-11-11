@@ -10,6 +10,7 @@ model User {
   id         Int         @id @default(autoincrement())
   name       String
   email      String      @unique
+  whatsapp   String?
   password   String
   role       Role        @default(USER)
   createdAt  DateTime    @default(now()) @map("created_at")
@@ -76,6 +77,19 @@ model Bill {
   transactions Transaction[]
 
   @@map("bills")
+}
+
+model OtpCode {
+  id        Int      @id @default(autoincrement())
+  email     String
+  channel   String   @default("email")
+  target    String?
+  code      String
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("otp_codes")
 }
 
 model Transaction {

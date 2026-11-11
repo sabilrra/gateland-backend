@@ -4,10 +4,11 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../config/database';
 import config from '../config';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
+import { normalizeWhatsapp } from '../utils/phone';
 
 // POST /api/auth/register
 export const register = async (req: Request, res: Response): Promise<void> => {
-    const { name, email, password, role } = req.body;
+    const { name, email, whatsapp, password, role } = req.body;
 
     // Cek email sudah dipakai
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -19,13 +20,21 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         return;
     }
 
+    const normalizedWhatsapp = normalizeWhatsapp(whatsapp);
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Buat user
     const user = await prisma.user.create({
-        data: { name, email, password: hashedPassword, role },
-        select: { id: true, name: true, email: true, role: true, createdAt: true },
+        data: {
+            name,
+            email,
+            whatsapp: normalizedWhatsapp,
+            password: hashedPassword,
+            role,
+        },
+        select: { id: true, name: true, email: true, whatsapp: true, role: true, createdAt: true },
     });
 
     // Generate token
@@ -90,6 +99,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
                 id: user.id,
                 name: user.name,
                 email: user.email,
+                whatsapp: user.whatsapp,
                 role: user.role,
             },
             token,
@@ -145,6 +155,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
                 id: user.id,
                 name: user.name,
                 email: user.email,
+                whatsapp: user.whatsapp,
                 role: user.role,
             },
             token,
@@ -156,7 +167,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
 export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const user = await prisma.user.findUnique({
         where: { id: req.user!.id },
-        select: { id: true, name: true, email: true, role: true, createdAt: true },
+        select: { id: true, name: true, email: true, whatsapp: true, role: true, createdAt: true },
     });
 
     if (!user) {

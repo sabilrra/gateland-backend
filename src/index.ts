@@ -13,6 +13,7 @@ import accessLogRoutes from './routes/accessLog.routes';
 import statsRoutes from './routes/stats.routes';
 import announcementRoutes from './routes/announcement.routes';
 import paymentRoutes from './routes/payment.routes';
+import otpRoutes from './routes/otp.routes';
 
 // Middlewares
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
@@ -60,6 +61,7 @@ app.use('/api/access-logs', accessLogRoutes);      // Log akses
 app.use('/api/stats', statsRoutes);                // Statistik dashboard
 app.use('/api/announcements', announcementRoutes);  // Pengumuman klaster
 app.use('/api/payments', paymentRoutes);            // Pembayaran QRIS & Tagihan
+app.use('/api/otp', otpRoutes);                    // OTP untuk lupa kata sandi
 
 // ─── Error Handling ───────────────────────────────────────────────────────────
 app.use(notFoundHandler);

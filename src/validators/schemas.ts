@@ -26,6 +26,7 @@ const strongPassword = z
 export const registerSchema = z.object({
     name: z.string().min(2, 'Nama minimal 2 karakter'),
     email: gmailEmail,
+    whatsapp: z.string().min(9, 'Nomor WhatsApp minimal 9 digit').optional(),
     password: strongPassword,
     role: z.enum(['ADMIN', 'USER', 'GUARD']).optional().default('USER'),
 });
