@@ -21,7 +21,7 @@ import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 const app = express();
 const httpServer = createServer(app);
 
-// ─── Socket.IO untuk real-time status gerbang ───────────────────────────────
+// Socket.IO untuk real-time status gerbang
 export const io = new Server(httpServer, {
     cors: {
         origin: '*',
@@ -37,7 +37,7 @@ io.on('connection', (socket) => {
     });
 });
 
-// ─── CORS ────────────────────────────────────────────────────────────────────
+// Middleware CORS
 app.use(cors({
     origin: (origin, callback) => {
         // Izinkan semua origin (localhost, IP eksternal, mobile app, Postman)
@@ -48,11 +48,11 @@ app.use(cors({
     credentials: true,
 }));
 
-// ─── Body Parser ─────────────────────────────────────────────────────────────
+// Body Parser
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
-// ─── Routes ──────────────────────────────────────────────────────────────────
+// Routing API
 app.use('/', gitaRoutes);                          // Health check
 app.use('/api/auth', authRoutes);                  // Login, Register, Me
 app.use('/api/gates', gateRoutes);                 // Gate CRUD + Aksi
@@ -63,11 +63,11 @@ app.use('/api/announcements', announcementRoutes);  // Pengumuman klaster
 app.use('/api/payments', paymentRoutes);            // Pembayaran QRIS & Tagihan
 app.use('/api/otp', otpRoutes);                    // OTP untuk lupa kata sandi
 
-// ─── Error Handling ───────────────────────────────────────────────────────────
+// Error Handling
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// ─── Start Server ─────────────────────────────────────────────────────────────
+// Jalankan Server
 httpServer.listen(config.port, '0.0.0.0', () => {
     console.log(`\n🚀 Server GateLand berjalan di http://localhost:${config.port}`);
     console.log(`📡 Socket.IO siap untuk real-time connection`);

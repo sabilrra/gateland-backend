@@ -3,7 +3,7 @@ import { prisma } from '../config/database';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { io } from '../index';
 
-// ─── GET /api/payments/my-bill ─────────────────────────────────────────────
+// GET /api/payments/my-bill
 // Mengambil tagihan aktif milik user yang login (user baru default Rp 0 / NONE)
 export const getMyBill = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
@@ -109,7 +109,7 @@ export const getMyBill = async (req: AuthenticatedRequest, res: Response): Promi
     }
 };
 
-// ─── POST /api/payments/create-qris ─────────────────────────────────────────
+// POST /api/payments/create-qris
 // Membuat transaksi QRIS baru (Sandbox/Demo Engine)
 export const createQrisTransaction = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
@@ -178,7 +178,7 @@ export const createQrisTransaction = async (req: AuthenticatedRequest, res: Resp
     }
 };
 
-// ─── POST /api/payments/simulate-pay ────────────────────────────────────────
+// POST /api/payments/simulate-pay
 // Simulasi Pembayaran QRIS Berhasil (Demo Simulator Sandbox)
 export const simulatePayQris = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -278,7 +278,7 @@ export const simulatePayQris = async (req: Request, res: Response): Promise<void
     }
 };
 
-// ─── GET /api/payments/status/:id ───────────────────────────────────────────
+// GET /api/payments/status/:id
 // Polling status transaksi oleh Mobile App
 export const checkPaymentStatus = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -316,7 +316,7 @@ export const checkPaymentStatus = async (req: Request, res: Response): Promise<v
     }
 };
 
-// ─── GET /api/admin/payments ───────────────────────────────────────────────
+// GET /api/admin/payments
 // Mengambil daftar seluruh riwayat & status pembayaran untuk Admin Dashboard
 export const getAdminPayments = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -395,7 +395,7 @@ export const getAdminPayments = async (req: Request, res: Response): Promise<voi
     }
 };
 
-// ─── POST /api/payments/bills ──────────────────────────────────────────────
+// POST /api/payments/bills
 // Membuat tagihan baru oleh Admin
 export const createBill = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -532,7 +532,7 @@ export const createBill = async (req: Request, res: Response): Promise<void> => 
     }
 };
 
-// ─── GET /api/payments/bills ───────────────────────────────────────────────
+// GET /api/payments/bills
 // Mengambil semua daftar tagihan
 export const getBills = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -552,7 +552,7 @@ export const getBills = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
-// ─── POST /api/payments/verify/:id ─────────────────────────────────────────
+// POST /api/payments/verify/:id
 // Verifikasi / Persetujuan pembayaran oleh Admin (Setujui / Tolak)
 export const verifyPayment = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -611,7 +611,7 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
     }
 };
 
-// ─── GET /api/payments/my-history ──────────────────────────────────────────
+// GET /api/payments/my-history
 // Mengambil riwayat transaksi pembayaran milik user / warga
 export const getMyPaymentHistory = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
@@ -638,7 +638,7 @@ export const getMyPaymentHistory = async (req: AuthenticatedRequest, res: Respon
     }
 };
 
-// ─── POST /api/payments/manual-transfer ────────────────────────────────────
+// POST /api/payments/manual-transfer
 // Submit bukti konfirmasi transfer manual bank dari mobile warga
 export const submitManualTransfer = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {

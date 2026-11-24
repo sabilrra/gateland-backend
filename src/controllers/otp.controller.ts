@@ -5,7 +5,7 @@ import { prisma } from '../config/database';
 import { normalizeWhatsapp, maskWhatsapp } from '../utils/phone';
 import { strongPassword } from '../validators/schemas';
 
-// ─── Nodemailer transporter ───────────────────────────────────────────────────
+// Konfigurasi transporter Nodemailer
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -14,12 +14,12 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// ─── Helper: generate 6-digit OTP ────────────────────────────────────────────
+// Helper generate 6-digit OTP
 function generateOtp(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// ─── Helper: mask email (a*********a@gmail.com) ───────────────────────────────
+// Helper mask email
 function maskEmail(email: string): string {
     const parts = email.split('@');
     const local = parts[0] ?? '';
@@ -29,7 +29,7 @@ function maskEmail(email: string): string {
     return `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
 }
 
-// ─── Helper: kirim OTP ke Email via Nodemailer ────────────────────────────────
+// Helper kirim OTP ke email via Nodemailer
 async function sendEmailOtp(toEmail: string, code: string): Promise<void> {
     await transporter.sendMail({
         from: `"GateLand App" <${process.env.EMAIL_USER}>`,
@@ -59,7 +59,7 @@ async function sendEmailOtp(toEmail: string, code: string): Promise<void> {
     });
 }
 
-// ─── Helper: kirim OTP ke WhatsApp via Fonnte ─────────────────────────────────
+// Helper kirim OTP ke WhatsApp via Fonnte
 async function sendWhatsappOtp(targetWa: string, userName: string, code: string): Promise<void> {
     const fonnteToken = process.env.FONNTE_TOKEN;
     if (!fonnteToken || fonnteToken === 'ISI_TOKEN_FONNTE_KAMU') {
@@ -98,7 +98,7 @@ async function sendWhatsappOtp(targetWa: string, userName: string, code: string)
     }
 }
 
-// ─── POST /api/otp/send ───────────────────────────────────────────────────────
+// POST /api/otp/send
 export async function sendOtp(req: Request, res: Response): Promise<void> {
     try {
         const { method: rawMethod, email, whatsapp, target } = req.body as {
@@ -213,7 +213,7 @@ export async function sendOtp(req: Request, res: Response): Promise<void> {
     }
 }
 
-// ─── POST /api/otp/verify ─────────────────────────────────────────────────────
+// POST /api/otp/verify
 export async function verifyOtp(req: Request, res: Response): Promise<void> {
     try {
         const { email, code, newPassword } = req.body as {

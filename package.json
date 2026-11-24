@@ -9,10 +9,11 @@
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma skills sync || exit 0"
+    "seed500": "tsx prisma/seed500.ts"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "seed500": "tsx prisma/seed500.ts"
   },
   "keywords": [],
   "author": "",
